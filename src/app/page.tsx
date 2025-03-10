@@ -97,11 +97,15 @@ export default function Home() {
                   rel="noopener noreferrer"
                   className="block"
                 >
-                  <h2 className="text-xl font-semibold text-blue-600 hover:underline mb-2">
-                    {result.title}
-                  </h2>
+                  <h2 
+                    className="text-xl font-semibold text-blue-600 hover:underline mb-2"
+                    dangerouslySetInnerHTML={{ __html: result.title }}
+                  />
                   <p className="text-gray-600 text-sm mb-2">{result.url}</p>
-                  <p className="text-gray-800">{result.description}</p>
+                  <p 
+                    className="text-gray-800"
+                    dangerouslySetInnerHTML={{ __html: result.description }}
+                  />
                 </a>
               </div>
             </div>
