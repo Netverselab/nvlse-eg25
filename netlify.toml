@@ -1,14 +1,15 @@
 [build]
-  command = "npm install && npm run build"
-  publish = "build"
-
-[functions]
-  directory = "functions"
+command = "npm run build"
+publish = "dist"
 
 [[redirects]]
-  from = "/api/*"
-  to = "/.netlify/functions/:splat"
-  status = 200
+from = "/api/*"
+to = "/.netlify/functions/api/:splat"
+status = 200
+
+[functions]
+directory = "functions"
+node_bundler = "esbuild"
 
 [build.environment]
-  NODE_VERSION = "18"
+NODE_VERSION = "18"
