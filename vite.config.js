@@ -12,5 +12,12 @@ export default defineConfig({
         secure: false
       }
     }
+  },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: undefined
+      }
+    }
   }
 })

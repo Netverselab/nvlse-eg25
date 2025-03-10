@@ -13,7 +13,7 @@ function App() {
         setLoading(true);
         setError(null);
         try {
-          const response = await fetch('/api/search', {
+          const response = await fetch(import.meta.env.PROD ? '/.netlify/functions/api' : '/api/search', {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
