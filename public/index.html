@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Brave Search Engine</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            padding: 20px;
+            max-width: 1200px;
+            margin: 0 auto;
+            background-color: #f5f5f5;
+        }
+
+        .search-container {
+            text-align: center;
+            margin: 50px 0;
+        }
+
+        .search-input {
+            width: 80%;
+            max-width: 600px;
+            padding: 15px;
+            font-size: 18px;
+            border: 2px solid #ddd;
+            border-radius: 25px;
+            outline: none;
+            transition: border-color 0.3s ease;
+        }
+
+        .search-input:focus {
+            border-color: #fb542b;
+        }
+
+        .results-container {
+            margin-top: 30px;
+        }
+
+        .result-item {
+            background: white;
+            padding: 20px;
+            margin-bottom: 15px;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+
+        .result-item h2 {
+            color: #1a0dab;
+            margin-bottom: 10px;
+            font-size: 20px;
+        }
+
+        .result-item .url {
+            color: #006621;
+            font-size: 14px;
+            margin-bottom: 8px;
+        }
+
+        .result-item .description {
+            color: #545454;
+            font-size: 16px;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 20px;
+            display: none;
+        }
+
+        .error-message {
+            color: #dc3545;
+            text-align: center;
+            padding: 10px;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="search-container">
+        <input type="text" class="search-input" placeholder="Search the web..." autocomplete="off">
+    </div>
+    
+    <div class="loading">Searching...</div>
+    <div class="error-message"></div>
+    <div class="results-container"></div>
+
+    <script>
+        const searchInput = document.querySelector('.search-input');
+        const resultsContainer = document.querySelector('.results-container');
+        const loadingElement = document.querySelector('.loading');
+        const errorElement = document.querySelector('.error-message');
+
+        let debounceTimer;
+
+        searchInput.addEventListener('input', function(e) {
+            clearTimeout(debounceTimer);
+            const query = e.target.value.trim();
+
+            if (query.length === 0) {
+                resultsContainer.innerHTML = '';
+                return;
+            }
+
+            debounceTimer = setTimeout(() => performSearch(query), 300);
+        });
+
+        async function performSearch(query) {
+            try {
+                loadingElement.style.display = 'block';
+                errorElement.style.display = 'none';
+                resultsContainer.innerHTML = '';
+
+                const response = await fetch(`/api/search?q=${encodeURIComponent(query)}`);
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.error || 'Failed to fetch results');
+                }
+
+                displayResults(data);
+            } catch (error) {
+                errorElement.textContent = error.message;
+                errorElement.style.display = 'block';
+                resultsContainer.innerHTML = '';
+            } finally {
+                loadingElement.style.display = 'none';
+            }
+        }
+
+        function displayResults(data) {
+            if (!data.web || !data.web.results || data.web.results.length === 0) {
+                resultsContainer.innerHTML = '<div class="result-item">No results found</div>';
+                return;
+            }
+
+            const results = data.web.results;
+            const resultsHTML = results.map(result => `
+                <div class="result-item">
+                    <h2><a href="${result.url}" target="_blank">${result.title}</a></h2>
+                    <div class="url">${result.url}</div>
+                    <div class="description">${result.description}</div>
+                </div>
+            `).join('');
+
+            resultsContainer.innerHTML = resultsHTML;
+        }
+    </script>
+</body>
+</html>
