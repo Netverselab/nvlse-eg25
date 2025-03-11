@@ -33,20 +33,24 @@ function setCache(key: string, data: any): void {
   cache.set(key, { data, timestamp: Date.now() });
 }
 
+// Utility function to remove HTML tags and decode entities
+function sanitizeText(text: string): string {
+  if (!text) return '';
+  return text
+    .replace(/<[^>]*>/g, '') // Remove HTML tags
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'");
+}
+
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const query = searchParams.get('q');
 
   if (!query) {
     return NextResponse.json({ error: 'Query parameter is required' }, { status: 400 });
-  }
-
-  const type = searchParams.get('type') || 'all';
-  const cacheKey = getCacheKey(query, type);
-  const cachedResult = getFromCache(cacheKey);
-
-  if (cachedResult) {
-    return NextResponse.json(cachedResult);
   }
 
   const braveApiKey = process.env.BRAVE_API_KEY;
@@ -58,102 +62,79 @@ export async function GET(request: Request) {
     );
   }
 
-  const endpoint = BRAVE_ENDPOINTS[type as keyof typeof BRAVE_ENDPOINTS];
-
-  if (!endpoint) {
-    return NextResponse.json({ error: 'Invalid search type' }, { status: 400 });
-  }
-
   try {
-    const fetchWithRateLimit = () => fetch(`${endpoint}?q=${encodeURIComponent(query)}`, {
-      headers: {
-        'Accept': 'application/json',
-        'X-Subscription-Token': braveApiKey,
-        'User-Agent': 'NetverseLab-Search/1.0'
-      },
-      next: { revalidate: CACHE_TTL / 1000 }
-    });
-
-    const response = await rateLimiter.executeWithRateLimit(
-      `brave-api-${type}`,
-      fetchWithRateLimit
-    );
-
-    if (!response.ok) {
-      if (response.status === 429) {
-        // Return cached results if available, otherwise return empty results
-        const cachedData = getFromCache(cacheKey);
-        if (cachedData) {
-          return NextResponse.json(cachedData);
-        }
-        return NextResponse.json({
-          web: { results: [] },
-          message: "Please try again in a moment"
-        });
-      }
-      console.error(`API Error: ${response.status}`);
-      return NextResponse.json({
-        web: { results: [] },
-        message: "No results found"
+    // Fetch all types of results in parallel
+    const fetchResults = async (type: string) => {
+      const endpoint = BRAVE_ENDPOINTS[type as keyof typeof BRAVE_ENDPOINTS];
+      const fetchWithRateLimit = () => fetch(`${endpoint}?q=${encodeURIComponent(query)}`, {
+        headers: {
+          'Accept': 'application/json',
+          'X-Subscription-Token': braveApiKey,
+          'User-Agent': 'NetverseLab-Search/1.0'
+        },
+        next: { revalidate: CACHE_TTL / 1000 }
       });
-    }
 
-    const data = await response.json();
-    let transformedData = {};
+      const response = await rateLimiter.executeWithRateLimit(
+        `brave-api-${type}`,
+        fetchWithRateLimit
+      );
 
-    switch (type) {
-      case 'images':
-        transformedData = {
-          images: data.results?.map((result: any) => ({
-            image: {
-              url: result.thumbnail?.src || result.url,
-              height: result.thumbnail?.height,
-              width: result.thumbnail?.width
-            },
-            title: result.title,
-            source_url: result.source
-          })) || []
-        };
-        break;
+      if (!response.ok) {
+        if (response.status === 429) {
+          console.warn(`Rate limit hit for ${type}, will retry with exponential backoff`);
+          // Let the rate limiter handle the retry
+          throw new Error('rate limit');
+        } else {
+          console.error(`API Error for ${type}: ${response.status}`);
+          return null;
+        }
+      }
 
-      case 'videos':
-        transformedData = {
-          videos: data.results?.map((result: any) => ({
-            title: result.title,
-            url: result.url,
-            thumbnail: result.thumbnail,
-            duration: result.duration || 'N/A',
-            source: result.provider || 'Unknown'
-          })) || []
-        };
-        break;
+      return response.json();
+    };
 
-      case 'news':
-        transformedData = {
-          news: data.results?.map((result: any) => ({
-            title: result.title,
-            url: result.url,
-            description: result.description,
-            date: result.age || 'N/A',
-            source: result.source || 'Unknown'
-          })) || []
-        };
-        break;
+    const [webData, imagesData, videosData, newsData] = await Promise.all([
+      fetchResults('all'),
+      fetchResults('images'),
+      fetchResults('videos'),
+      fetchResults('news')
+    ]);
 
-      default:
-        transformedData = {
-          web: {
-            results: data.web?.results?.map((result: any) => ({
-              title: result.title,
-              url: result.url,
-              description: result.description,
-              favicon: `https://www.google.com/s2/favicons?domain=${encodeURIComponent(new URL(result.url).hostname)}&sz=32`
-            })) || []
-          }
-        };
-    }
+    const transformedData = {
+      web: {
+        results: webData?.web?.results?.map((result: any) => ({
+          title: sanitizeText(result.title),
+          url: result.url,
+          description: sanitizeText(result.description),
+          favicon: `https://www.google.com/s2/favicons?domain=${encodeURIComponent(new URL(result.url).hostname)}&sz=32`
+        })) || []
+      },
+      images: imagesData?.results?.map((result: any) => ({
+        image: {
+          url: result.thumbnail?.src || result.url,
+          height: result.thumbnail?.height,
+          width: result.thumbnail?.width
+        },
+        title: sanitizeText(result.title),
+        source_url: result.source
+      })) || [],
+      videos: videosData?.results?.map((result: any) => ({
+        title: sanitizeText(result.title),
+        url: result.url,
+        thumbnail: result.thumbnail,
+        duration: result.duration || 'N/A',
+        source: sanitizeText(result.provider) || 'Unknown'
+      })) || [],
+      news: newsData?.results?.map((result: any) => ({
+        title: sanitizeText(result.title),
+        url: result.url,
+        description: sanitizeText(result.description),
+        date: result.age || 'N/A',
+        source: sanitizeText(result.source) || 'Unknown'
+      })) || []
+    };
 
-    setCache(cacheKey, transformedData);
     return NextResponse.json(transformedData);
   } catch (error) {
     console.error('Search API error:', error);
