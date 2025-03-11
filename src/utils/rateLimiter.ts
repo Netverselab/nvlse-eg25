@@ -19,8 +19,8 @@ class RateLimiter {
     this.queue = new Map();
     this.processing = new Map();
     this.config = {
-      maxRequests: 3,
-      windowMs: 30000, // 30 seconds
+      maxRequests: 10,
+      windowMs: 60000, // 1 minute
       retryAfterMs: 2000, // Initial retry after 2 seconds
       maxRetries: 5,
       queueSize: 200,

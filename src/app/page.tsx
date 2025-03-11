@@ -71,11 +71,12 @@ export default function Home() {
       setNewsResults(data.news || []);
     } catch (err: any) {
       if (err.message?.includes('rate limit')) {
-        setError('Search rate limit reached. Please wait a moment before trying again.');
+        // Don't show rate limit errors to users, just retry automatically
+        setTimeout(() => handleSearch(e), 2000);
       } else {
         setError('Failed to fetch search results. Please try again.');
+        console.error('Search error:', err);
       }
-      console.error('Search error:', err);
     } finally {
       setLoading(false);
     }
