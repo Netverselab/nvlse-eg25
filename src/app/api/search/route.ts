@@ -108,53 +108,17 @@ export async function GET(request: Request) {
       }
     };
 
-    const [webData, imagesData, videosData, newsData] = await Promise.all([
-      fetchResults('all'),
-      fetchResults('images'),
-      fetchResults('videos'),
-      fetchResults('news')
-    ]);
+    let webData, imagesData, videosData, newsData;
 
-    const transformedData = {
-      web: {
-        results: webData?.web?.results?.map((result: any) => ({
-          title: sanitizeText(result.title),
-          url: result.url,
-          description: sanitizeText(result.description),
-          favicon: `https://www.google.com/s2/favicons?domain=${encodeURIComponent(new URL(result.url).hostname)}&sz=32`
-        })) || []
-      },
-      images: imagesData?.results?.map((result: any) => ({
-        image: {
-          url: result.thumbnail?.src || result.url,
-          height: result.thumbnail?.height,
-          width: result.thumbnail?.width
-        },
-        title: sanitizeText(result.title),
-        source_url: result.source
-      })) || [],
-      videos: videosData?.results?.map((result: any) => ({
-        title: sanitizeText(result.title),
-        url: result.url,
-        thumbnail: result.thumbnail,
-        duration: result.duration || 'N/A',
-        source: sanitizeText(result.provider) || 'Unknown'
-      })) || [],
-      news: newsData?.results?.map((result: any) => ({
-        title: sanitizeText(result.title),
-        url: result.url,
-        description: sanitizeText(result.description),
-        date: result.age || 'N/A',
-        source: sanitizeText(result.source) || 'Unknown'
-      })) || []
-    };
+    try {
+      // Fetch all types of results in parallel
+      [webData, imagesData, videosData, newsData] = await Promise.all([
+        fetchResults('all'),
+        fetchResults('images'),
+        fetchResults('videos'),
+        fetchResults('news')
+      ]);
 
-    return NextResponse.json(transformedData);
-  } catch (error) {
-    console.error('Search API error:', error);
-    
-    // If we have any partial results, return them
-    if (webData || imagesData || videosData || newsData) {
       const transformedData = {
         web: {
           results: webData?.web?.results?.map((result: any) => ({
@@ -188,14 +152,61 @@ export async function GET(request: Request) {
           source: sanitizeText(result.source) || 'Unknown'
         })) || []
       };
+
       return NextResponse.json(transformedData);
-    }
-    
-    // Only return error if we have no results at all
+    } catch (error) {
+      console.error('Search API error:', error);
+      
+      // If we have any partial results, return them
+      if (webData || imagesData || videosData || newsData) {
+        const transformedData = {
+          web: {
+            results: webData?.web?.results?.map((result: any) => ({
+              title: sanitizeText(result.title),
+              url: result.url,
+              description: sanitizeText(result.description),
+              favicon: `https://www.google.com/s2/favicons?domain=${encodeURIComponent(new URL(result.url).hostname)}&sz=32`
+            })) || []
+          },
+          images: imagesData?.results?.map((result: any) => ({
+            image: {
+              url: result.thumbnail?.src || result.url,
+              height: result.thumbnail?.height,
+              width: result.thumbnail?.width
+            },
+            title: sanitizeText(result.title),
+            source_url: result.source
+          })) || [],
+          videos: videosData?.results?.map((result: any) => ({
+            title: sanitizeText(result.title),
+            url: result.url,
+            thumbnail: result.thumbnail,
+            duration: result.duration || 'N/A',
+            source: sanitizeText(result.provider) || 'Unknown'
+          })) || [],
+          news: newsData?.results?.map((result: any) => ({
+            title: sanitizeText(result.title),
+            url: result.url,
+            description: sanitizeText(result.description),
+            date: result.age || 'N/A',
+            source: sanitizeText(result.source) || 'Unknown'
+          })) || []
+        };
+        return NextResponse.json(transformedData);
+      }
+      
+      return NextResponse.json(
+        { 
+          error: error instanceof Error && error.message.includes('rate limit') 
+            ? 'Search rate limit reached. Please try again in a moment.' 
+            : 'Failed to fetch search results' 
+        },
+        { status: 500 }
+      );
+    }  } catch (error) {
+    console.error('Search API error:', error);
     return NextResponse.json(
-      { error: error instanceof Error && error.message.includes('rate limit') ?
-        'Search rate limit reached. Please try again in a moment.' :
-        'Failed to fetch search results' },
+      { error: 'Failed to process search request' },
       { status: 500 }
     );
   }
