@@ -66,6 +66,13 @@ export async function GET(request: Request) {
     // Fetch all types of results in parallel
     const fetchResults = async (type: string) => {
       const endpoint = BRAVE_ENDPOINTS[type as keyof typeof BRAVE_ENDPOINTS];
+      const cacheKey = getCacheKey(query, type);
+      const cachedData = getFromCache(cacheKey);
+      
+      if (cachedData) {
+        return cachedData;
+      }
+
       const fetchWithRateLimit = () => fetch(`${endpoint}?q=${encodeURIComponent(query)}`, {
         headers: {
           'Accept': 'application/json',
@@ -75,23 +82,30 @@ export async function GET(request: Request) {
         next: { revalidate: CACHE_TTL / 1000 }
       });
 
-      const response = await rateLimiter.executeWithRateLimit(
-        `brave-api-${type}`,
-        fetchWithRateLimit
-      );
+      try {
+        const response = await rateLimiter.executeWithRateLimit(
+          `brave-api-${type}`,
+          fetchWithRateLimit
+        );
 
-      if (!response.ok) {
-        if (response.status === 429) {
-          console.warn(`Rate limit hit for ${type}, will retry with exponential backoff`);
-          // Let the rate limiter handle the retry
-          throw new Error('rate limit');
-        } else {
+        if (!response.ok) {
+          if (response.status === 429) {
+            console.warn(`Rate limit hit for ${type}, retrying with exponential backoff`);
+            // Return cached data if available during rate limit
+            return cachedData || null;
+          }
           console.error(`API Error for ${type}: ${response.status}`);
-          return null;
+          return cachedData || null; // Return cached data if available during error
         }
-      }
 
-      return response.json();
+        const data = await response.json();
+        setCache(cacheKey, data);
+        return data;
+      } catch (error) {
+        console.error(`Error fetching ${type} results:`, error);
+        // Return cached data if available during error
+        return cachedData || null;
+      }
     };
 
     const [webData, imagesData, videosData, newsData] = await Promise.all([
@@ -138,8 +152,50 @@ export async function GET(request: Request) {
     return NextResponse.json(transformedData);
   } catch (error) {
     console.error('Search API error:', error);
+    
+    // If we have any partial results, return them
+    if (webData || imagesData || videosData || newsData) {
+      const transformedData = {
+        web: {
+          results: webData?.web?.results?.map((result: any) => ({
+            title: sanitizeText(result.title),
+            url: result.url,
+            description: sanitizeText(result.description),
+            favicon: `https://www.google.com/s2/favicons?domain=${encodeURIComponent(new URL(result.url).hostname)}&sz=32`
+          })) || []
+        },
+        images: imagesData?.results?.map((result: any) => ({
+          image: {
+            url: result.thumbnail?.src || result.url,
+            height: result.thumbnail?.height,
+            width: result.thumbnail?.width
+          },
+          title: sanitizeText(result.title),
+          source_url: result.source
+        })) || [],
+        videos: videosData?.results?.map((result: any) => ({
+          title: sanitizeText(result.title),
+          url: result.url,
+          thumbnail: result.thumbnail,
+          duration: result.duration || 'N/A',
+          source: sanitizeText(result.provider) || 'Unknown'
+        })) || [],
+        news: newsData?.results?.map((result: any) => ({
+          title: sanitizeText(result.title),
+          url: result.url,
+          description: sanitizeText(result.description),
+          date: result.age || 'N/A',
+          source: sanitizeText(result.source) || 'Unknown'
+        })) || []
+      };
+      return NextResponse.json(transformedData);
+    }
+    
+    // Only return error if we have no results at all
     return NextResponse.json(
-      { error: 'Failed to fetch search results' },
+      { error: error instanceof Error && error.message.includes('rate limit') ?
+        'Search rate limit reached. Please try again in a moment.' :
+        'Failed to fetch search results' },
       { status: 500 }
     );
   }

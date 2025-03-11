@@ -61,6 +61,10 @@ export default function Home() {
       const data = await response.json();
 
       if (!response.ok) {
+        if (response.status === 429) {
+          setError('Search rate limit reached. Please wait a moment before trying again.');
+          return;
+        }
         throw new Error(data.error || 'Failed to fetch results');
       }
 
@@ -70,13 +74,8 @@ export default function Home() {
       setVideoResults(data.videos || []);
       setNewsResults(data.news || []);
     } catch (err: any) {
-      if (err.message?.includes('rate limit')) {
-        // Don't show rate limit errors to users, just retry automatically
-        setTimeout(() => handleSearch(e), 2000);
-      } else {
-        setError('Failed to fetch search results. Please try again.');
-        console.error('Search error:', err);
-      }
+      console.error('Search error:', err);
+      setError('Failed to fetch search results. Please try again.');
     } finally {
       setLoading(false);
     }

@@ -19,11 +19,11 @@ class RateLimiter {
     this.queue = new Map();
     this.processing = new Map();
     this.config = {
-      maxRequests: 10,
-      windowMs: 60000, // 1 minute
-      retryAfterMs: 2000, // Initial retry after 2 seconds
-      maxRetries: 5,
-      queueSize: 200,
+      maxRequests: 3, // Further reduced to be more conservative
+      windowMs: 120000, // Increased to 2 minutes
+      retryAfterMs: 2000, // Increased initial retry delay
+      maxRetries: 5, // Increased max retries
+      queueSize: 50, // Reduced queue size for better throughput
       ...config
     };
   }
