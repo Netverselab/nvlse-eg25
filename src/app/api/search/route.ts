@@ -84,8 +84,8 @@ export async function GET(request: Request) {
         });
 
         if (response.status === 429) {
-          await delay(1000); // Wait 1 second before retrying
-          return fetchResults(searchType); // Retry the request
+          await delay(1000);
+          return fetchResults(searchType);
         }
 
         if (!response.ok) {
@@ -97,17 +97,16 @@ export async function GET(request: Request) {
         return data;
       } catch (error) {
         console.error(`Error fetching ${searchType} results:`, error);
-        return { results: [] }; // Return empty results instead of null
+        return { results: [] };
       }
     };
 
-    // Fetch results sequentially without delays
+    // Fetch results sequentially to avoid rate limits
     const webData = await fetchResults('all');
     const imagesData = await fetchResults('images');
     const videosData = await fetchResults('videos');
     const newsData = await fetchResults('news');
 
-    // Transform all results at once
     const transformedData = {
       web: {
         results: webData?.web?.results?.map((result: any) => ({
