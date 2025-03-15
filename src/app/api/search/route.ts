@@ -63,139 +63,91 @@ export async function GET(request: Request) {
   }
 
   try {
-    // Fetch all types of results in parallel
-    const fetchResults = async (type: string) => {
-      const endpoint = BRAVE_ENDPOINTS[type as keyof typeof BRAVE_ENDPOINTS];
-      const cacheKey = getCacheKey(query, type);
+    const fetchResults = async (searchType: string) => {
+      const endpoint = BRAVE_ENDPOINTS[searchType as keyof typeof BRAVE_ENDPOINTS];
+      const cacheKey = getCacheKey(query, searchType);
       const cachedData = getFromCache(cacheKey);
       
       if (cachedData) {
         return cachedData;
       }
 
-      const fetchWithRateLimit = () => fetch(`${endpoint}?q=${encodeURIComponent(query)}`, {
-        headers: {
-          'Accept': 'application/json',
-          'X-Subscription-Token': braveApiKey,
-          'User-Agent': 'NetverseLab-Search/1.0'
-        },
-        next: { revalidate: CACHE_TTL / 1000 }
-      });
+      const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
       try {
-        const response = await rateLimiter.executeWithRateLimit(
-          `brave-api-${type}`,
-          fetchWithRateLimit
-        );
+        const response = await fetch(`${endpoint}?q=${encodeURIComponent(query)}&count=10`, {
+          headers: {
+            'Accept': 'application/json',
+            'X-Subscription-Token': braveApiKey,
+            'User-Agent': 'NetverseLab-Search/1.0'
+          }
+        });
+
+        if (response.status === 429) {
+          await delay(1000); // Wait 1 second before retrying
+          return fetchResults(searchType); // Retry the request
+        }
 
         if (!response.ok) {
-          if (response.status === 429) {
-            console.warn(`Rate limit hit for ${type}, retrying with exponential backoff`);
-            // Return cached data if available during rate limit
-            return cachedData || null;
-          }
-          console.error(`API Error for ${type}: ${response.status}`);
-          return cachedData || null; // Return cached data if available during error
+          throw new Error(`API Error: ${response.status}`);
         }
 
         const data = await response.json();
         setCache(cacheKey, data);
         return data;
       } catch (error) {
-        console.error(`Error fetching ${type} results:`, error);
-        // Return cached data if available during error
-        return cachedData || null;
+        console.error(`Error fetching ${searchType} results:`, error);
+        return { results: [] }; // Return empty results instead of null
       }
     };
 
-    const [webData, imagesData, videosData, newsData] = await Promise.all([
-      fetchResults('all'),
-      fetchResults('images'),
-      fetchResults('videos'),
-      fetchResults('news')
-    ]);
+    // Fetch results sequentially without delays
+    const webData = await fetchResults('all');
+    const imagesData = await fetchResults('images');
+    const videosData = await fetchResults('videos');
+    const newsData = await fetchResults('news');
 
+    // Transform all results at once
     const transformedData = {
       web: {
         results: webData?.web?.results?.map((result: any) => ({
-          title: sanitizeText(result.title),
-          url: result.url,
-          description: sanitizeText(result.description),
-          favicon: `https://www.google.com/s2/favicons?domain=${encodeURIComponent(new URL(result.url).hostname)}&sz=32`
+          title: sanitizeText(result.title || ''),
+          url: result.url || '',
+          description: sanitizeText(result.description || ''),
+          favicon: result.url ? `https://www.google.com/s2/favicons?domain=${encodeURIComponent(new URL(result.url).hostname)}&sz=32` : ''
         })) || []
       },
-      images: imagesData?.results?.map((result: any) => ({
+      images: (imagesData?.results || []).map((result: any) => ({
         image: {
-          url: result.thumbnail?.src || result.url,
-          height: result.thumbnail?.height,
-          width: result.thumbnail?.width
+          url: result.thumbnail?.src || result.image?.url || result.url || result.link || '',
+          height: result.thumbnail?.height || result.image?.height || 300,
+          width: result.thumbnail?.width || result.image?.width || 300
         },
-        title: sanitizeText(result.title),
-        source_url: result.source
-      })) || [],
-      videos: videosData?.results?.map((result: any) => ({
-        title: sanitizeText(result.title),
-        url: result.url,
-        thumbnail: result.thumbnail,
-        duration: result.duration || 'N/A',
-        source: sanitizeText(result.provider) || 'Unknown'
-      })) || [],
-      news: newsData?.results?.map((result: any) => ({
-        title: sanitizeText(result.title),
-        url: result.url,
-        description: sanitizeText(result.description),
-        date: result.age || 'N/A',
-        source: sanitizeText(result.source) || 'Unknown'
-      })) || []
+        title: sanitizeText(result.title || ''),
+        source_url: result.source || result.url || ''
+      })),
+      videos: (videosData?.results || []).map((result: any) => ({
+        title: sanitizeText(result.title || ''),
+        url: result.url || '',
+        thumbnail: result.thumbnail?.src || result.image?.url || result.thumbnails?.[0]?.src || result.url || '',
+        duration: result.duration || result.length || 'N/A',
+        source: sanitizeText(result.provider || result.source || 'Unknown')
+      })),
+      news: (newsData?.results || []).map((result: any) => ({
+        title: sanitizeText(result.title || ''),
+        url: result.url || '',
+        description: sanitizeText(result.description || result.snippet || ''),
+        date: result.date || result.age || result.published || 'N/A',
+        source: sanitizeText(result.source || result.publisher || 'Unknown')
+      }))
     };
 
     return NextResponse.json(transformedData);
+
   } catch (error) {
     console.error('Search API error:', error);
-    
-    // If we have any partial results, return them
-    if (webData || imagesData || videosData || newsData) {
-      const transformedData = {
-        web: {
-          results: webData?.web?.results?.map((result: any) => ({
-            title: sanitizeText(result.title),
-            url: result.url,
-            description: sanitizeText(result.description),
-            favicon: `https://www.google.com/s2/favicons?domain=${encodeURIComponent(new URL(result.url).hostname)}&sz=32`
-          })) || []
-        },
-        images: imagesData?.results?.map((result: any) => ({
-          image: {
-            url: result.thumbnail?.src || result.url,
-            height: result.thumbnail?.height,
-            width: result.thumbnail?.width
-          },
-          title: sanitizeText(result.title),
-          source_url: result.source
-        })) || [],
-        videos: videosData?.results?.map((result: any) => ({
-          title: sanitizeText(result.title),
-          url: result.url,
-          thumbnail: result.thumbnail,
-          duration: result.duration || 'N/A',
-          source: sanitizeText(result.provider) || 'Unknown'
-        })) || [],
-        news: newsData?.results?.map((result: any) => ({
-          title: sanitizeText(result.title),
-          url: result.url,
-          description: sanitizeText(result.description),
-          date: result.age || 'N/A',
-          source: sanitizeText(result.source) || 'Unknown'
-        })) || []
-      };
-      return NextResponse.json(transformedData);
-    }
-    
-    // Only return error if we have no results at all
     return NextResponse.json(
-      { error: error instanceof Error && error.message.includes('rate limit') ?
-        'Search rate limit reached. Please try again in a moment.' :
-        'Failed to fetch search results' },
+      { error: 'Failed to fetch search results' },
       { status: 500 }
     );
   }
