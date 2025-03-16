@@ -2,6 +2,9 @@
 
 import { useState } from 'react';
 
+import Image from 'next/image';
+import Search from './components/Search';
+
 interface SearchResult {
   title: string;
   url: string;
@@ -234,33 +237,67 @@ export default function Home() {
   };
 
   return (
-    <main className="min-h-screen p-8 max-w-4xl mx-auto">
-      <div className="text-center mb-8">
-        <h1 className="text-4xl font-bold mb-4">Next Gen Search Engine</h1>
-        <p className="text-gray-600">Powered by NetverseLab</p>
-      </div>
+    <main 
+      className="min-h-screen bg-[#1E1F24] flex flex-col items-center pt-20 relative"
+      style={{
+        backgroundImage: 'url(/assets/nightbackground.png)',
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        backgroundRepeat: 'no-repeat'
+      }}
+    >
+      {/* Content */}
+      <div className="relative z-10 flex flex-col items-center w-full">
+        {/* Logo */}
+        <div className="mb-12">
+          <span className="text-white text-4xl font-bold">NETVERSELAB</span>
+        </div>
 
-      <form onSubmit={handleSearch} className="mb-8">
-        <div className="flex gap-2">
-          <input
-            type="text"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search anything..."
-            className="flex-1 p-3 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+        {/* Search Component */}
+        <div className="w-full max-w-2xl px-4">
+          <Search />
+        </div>
+
+        {/* Quick Links */}
+        <div className="mt-8 grid grid-cols-2 md:grid-cols-4 gap-4 max-w-2xl px-4">
+          <QuickLink
+            icon="🛒"
+            title="How to save money on groceries"
           />
-          <button
-            type="submit"
-            disabled={loading}
-            className="px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50 transition-colors"
-          >
-            {loading ? 'Searching...' : 'Search'}
+          <QuickLink
+            icon="💻"
+            title="How to learn to code"
+          />
+          <QuickLink
+            icon="🔄"
+            title="How to import browser settings"
+          />
+          <QuickLink
+            icon="🏀"
+            title="NBA schedule"
+          />
+        </div>
+
+        {/* Browser Download Section */}
+        <div className="mt-16 flex items-center gap-4 bg-[#2B2C32]/80 rounded-lg p-4 max-w-2xl mx-4">
+          <div className="flex-1">
+            <h3 className="text-white font-medium mb-1">Next Gen Browser</h3>
+            <p className="text-gray-400 text-sm">Enjoying private search? Try our secure browser.</p>
+          </div>
+          <button className="bg-[#FB542B] text-white px-4 py-2 rounded hover:bg-[#EA431A] transition-colors">
+            Download
           </button>
         </div>
-      </form>
-
-      {renderSearchTabs()}
-      {renderResults()}
+      </div>
     </main>
+  );
+}
+
+function QuickLink({ icon, title }: { icon: string; title: string }) {
+  return (
+    <button className="flex items-center gap-3 p-4 rounded-lg bg-[#2B2C32] hover:bg-[#34353A] transition-colors text-left">
+      <span className="text-xl">{icon}</span>
+      <span className="text-white text-sm line-clamp-2">{title}</span>
+    </button>
   );
 }

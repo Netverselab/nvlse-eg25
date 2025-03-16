@@ -3,6 +3,21 @@
 @tailwind utilities;
 
 :root {
+  --background: #1E1F24;
+  --primary: #FB542B;
+}
+
+body {
+  background-color: var(--background);
+  color: white;
+}
+
+::selection {
+  background-color: var(--primary);
+  color: white;
+}
+
+:root {
   --background: #ffffff;
   --foreground: #171717;
   --primary: #8B5CF6;
