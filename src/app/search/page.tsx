@@ -1,34 +1,17 @@
 'use client';
 
-// Add this line below the 'use client' directive
 export const dynamic = 'force-dynamic';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Search from '../components/Search';
 import Link from 'next/link';
 import Header from '../components/Header';
 
-interface SearchResult {
-  url: string;
-  title: string;
-  description: string;
-  favicon?: string;
-}
-
-interface SearchResults {
-  web?: {
-    results: SearchResult[];
-  };
-  images?: any[];
-  videos?: any[];
-  news?: any[];
-}
-
-export default function SearchPage() {
+function SearchContent() {
   const searchParams = useSearchParams();
   const query = searchParams?.get('q') || '';
-  const [results, setResults] = useState<SearchResults | null>(null);
+  const [results, setResults] = useState<any | null>(null);
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('all');
 
@@ -51,6 +34,81 @@ export default function SearchPage() {
   }, [query]);
 
   return (
+    <main className="max-w-7xl mx-auto px-4 py-6">
+      {loading ? (
+        <div className="text-gray-400">Loading...</div>
+      ) : (
+        <div className="space-y-8">
+          <div className="text-sm text-gray-400">
+            Showing results for <span className="text-white">{query}</span>
+          </div>
+
+          {/* Show content based on active tab */}
+          {activeTab === 'all' && results?.web?.results?.map((result: any, i: number) => (
+            <div key={i} className="space-y-1">
+              <div className="flex items-center gap-3">
+                {result.favicon && <img src={result.favicon} alt="" className="w-4 h-4" />}
+                <a href={result.url} className="text-sm text-gray-400 hover:underline truncate">{result.url}</a>
+              </div>
+              <a href={result.url} className="block text-lg text-blue-400 hover:underline">{result.title}</a>
+              <p className="text-gray-300 text-sm">{result.description}</p>
+            </div>
+          ))}
+
+          {activeTab === 'images' && (
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+              {results?.images?.map((result: any, i: number) => (
+                <a key={i} href={result.source_url} target="_blank" rel="noopener noreferrer" 
+                   className="group relative aspect-square overflow-hidden rounded-lg">
+                  <img src={result.image.url} alt={result.title} className="h-full w-full object-cover" />
+                </a>
+              ))}
+            </div>
+          )}
+
+          {activeTab === 'videos' && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+              {results?.videos?.map((result: any, i: number) => (
+                <a key={i} href={result.url} target="_blank" rel="noopener noreferrer" 
+                   className="block bg-[#2B2C32] rounded-lg overflow-hidden">
+                  <div className="relative aspect-video">
+                    <img src={result.thumbnail} alt={result.title} className="w-full h-full object-cover" />
+                    <span className="absolute bottom-2 right-2 bg-black/75 text-white text-xs px-1.5 py-0.5 rounded">
+                      {result.duration}
+                    </span>
+                  </div>
+                  <div className="p-3">
+                    <h3 className="text-white text-sm line-clamp-2">{result.title}</h3>
+                    <p className="text-gray-400 text-xs mt-1">{result.source}</p>
+                  </div>
+                </a>
+              ))}
+            </div>
+          )}
+
+          {activeTab === 'news' && (
+            <div className="space-y-4">
+              {results?.news?.map((result: any, i: number) => (
+                <div key={i} className="space-y-1">
+                  <a href={result.url} className="block text-lg text-blue-400 hover:underline">{result.title}</a>
+                  <p className="text-gray-300 text-sm">{result.description}</p>
+                  <div className="flex items-center gap-2 text-xs text-gray-400">
+                    <span>{result.source}</span>
+                    <span>•</span>
+                    <span>{result.date}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+    </main>
+  );
+}
+
+export default function SearchPage() {
+  return (
     <div className="min-h-screen bg-[#1E1F24]">
       <Header />
       <header className="border-b border-gray-700">
@@ -69,9 +127,9 @@ export default function SearchPage() {
             {['All', 'Images', 'News', 'Videos'].map((tab) => (
               <button
                 key={tab}
-                onClick={() => setActiveTab(tab.toLowerCase())}
+                onClick={() => {}} // TODO: Implement setActiveTab functionality
                 className={`px-1 py-3 text-sm border-b-2 transition-colors bg-transparent ${
-                  activeTab === tab.toLowerCase()
+'all' === tab.toLowerCase()
                     ? 'text-white border-white font-medium'
                     : 'text-gray-400 border-transparent hover:text-white'
                 }`}
@@ -83,77 +141,9 @@ export default function SearchPage() {
         </div>
       </header>
 
-      {/* Results */}
-      <main className="max-w-7xl mx-auto px-4 py-6">
-        {loading ? (
-          <div className="text-gray-400">Loading...</div>
-        ) : (
-          <div className="space-y-8">
-            <div className="text-sm text-gray-400">
-              Showing results for <span className="text-white">{query}</span>
-            </div>
-
-            {/* Show content based on active tab */}
-            {activeTab === 'all' && results?.web?.results?.map((result: any, i: number) => (
-              <div key={i} className="space-y-1">
-                <div className="flex items-center gap-3">
-                  {result.favicon && <img src={result.favicon} alt="" className="w-4 h-4" />}
-                  <a href={result.url} className="text-sm text-gray-400 hover:underline truncate">{result.url}</a>
-                </div>
-                <a href={result.url} className="block text-lg text-blue-400 hover:underline">{result.title}</a>
-                <p className="text-gray-300 text-sm">{result.description}</p>
-              </div>
-            ))}
-
-            {activeTab === 'images' && (
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
-                {results?.images?.map((result: any, i: number) => (
-                  <a key={i} href={result.source_url} target="_blank" rel="noopener noreferrer" 
-                     className="group relative aspect-square overflow-hidden rounded-lg">
-                    <img src={result.image.url} alt={result.title} className="h-full w-full object-cover" />
-                  </a>
-                ))}
-              </div>
-            )}
-
-            {activeTab === 'videos' && (
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-                {results?.videos?.map((result: any, i: number) => (
-                  <a key={i} href={result.url} target="_blank" rel="noopener noreferrer" 
-                     className="block bg-[#2B2C32] rounded-lg overflow-hidden">
-                    <div className="relative aspect-video">
-                      <img src={result.thumbnail} alt={result.title} className="w-full h-full object-cover" />
-                      <span className="absolute bottom-2 right-2 bg-black/75 text-white text-xs px-1.5 py-0.5 rounded">
-                        {result.duration}
-                      </span>
-                    </div>
-                    <div className="p-3">
-                      <h3 className="text-white text-sm line-clamp-2">{result.title}</h3>
-                      <p className="text-gray-400 text-xs mt-1">{result.source}</p>
-                    </div>
-                  </a>
-                ))}
-              </div>
-            )}
-
-            {activeTab === 'news' && (
-              <div className="space-y-4">
-                {results?.news?.map((result: any, i: number) => (
-                  <div key={i} className="space-y-1">
-                    <a href={result.url} className="block text-lg text-blue-400 hover:underline">{result.title}</a>
-                    <p className="text-gray-300 text-sm">{result.description}</p>
-                    <div className="flex items-center gap-2 text-xs text-gray-400">
-                      <span>{result.source}</span>
-                      <span>•</span>
-                      <span>{result.date}</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
-      </main>
+      <Suspense fallback={<div className="text-gray-400 text-center py-8">Loading...</div>}>
+        <SearchContent />
+      </Suspense>
     </div>
   );
 }
