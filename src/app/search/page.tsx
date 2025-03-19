@@ -6,28 +6,45 @@ import Search from '../components/Search';
 import Link from 'next/link';
 import Header from '../components/Header';
 
+interface SearchResult {
+  url: string;
+  title: string;
+  description: string;
+  favicon?: string;
+}
+
+interface SearchResults {
+  web?: {
+    results: SearchResult[];
+  };
+  images?: any[];
+  videos?: any[];
+  news?: any[];
+}
+
 export default function SearchPage() {
   const searchParams = useSearchParams();
-  const query = searchParams.get('q');
-  const [results, setResults] = useState<any>(null);
+  const query = searchParams?.get('q') || '';
+  const [results, setResults] = useState<SearchResults | null>(null);
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('all');
 
   useEffect(() => {
-    const fetchResults = async () => {
-      if (!query) return;
-      setLoading(true);
-      try {
-        const response = await fetch(`/api/search?q=${encodeURIComponent(query)}`);
-        const data = await response.json();
-        setResults(data);
-      } catch (error) {
-        console.error('Search error:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchResults();
+    if (typeof window !== 'undefined' && query) {
+      const fetchResults = async () => {
+        setLoading(true);
+        try {
+          const response = await fetch(`/api/search?q=${encodeURIComponent(query)}`);
+          const data = await response.json();
+          setResults(data);
+        } catch (error) {
+          console.error('Search error:', error);
+        } finally {
+          setLoading(false);
+        }
+      };
+      fetchResults();
+    }
   }, [query]);
 
   return (
