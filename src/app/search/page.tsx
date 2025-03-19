@@ -1,12 +1,12 @@
 'use client';
 
-import { useEffect, useState, Suspense } from 'react';
+import { useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Search from '../components/Search';
-import Image from 'next/image';
 import Link from 'next/link';
+import Header from '../components/Header';
 
-function SearchPageContent() {
+export default function SearchPage() {
   const searchParams = useSearchParams();
   const query = searchParams.get('q');
   const [results, setResults] = useState<any>(null);
@@ -32,13 +32,13 @@ function SearchPageContent() {
 
   return (
     <div className="min-h-screen bg-[#1E1F24]">
-      {/* Header */}
+      <Header />
       <header className="border-b border-gray-700">
         <div className="max-w-7xl mx-auto px-4 py-3 flex items-center gap-8">
           <Link href="/" className="flex-shrink-0">
             <span className="text-white text-xl font-bold">NETVERSELAB</span>
           </Link>
-          <div className="flex-1">
+          <div className="flex-1 max-w-2xl">
             <Search />
           </div>
         </div>
@@ -135,17 +135,5 @@ function SearchPageContent() {
         )}
       </main>
     </div>
-  );
-}
-
-export default function SearchPage() {
-  return (
-    <Suspense fallback={
-      <div className="min-h-screen bg-[#1E1F24] flex items-center justify-center">
-        <div className="text-white">Loading...</div>
-      </div>
-    }>
-      <SearchPageContent />
-    </Suspense>
   );
 }

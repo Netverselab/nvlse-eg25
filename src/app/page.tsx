@@ -4,6 +4,7 @@ import { useState } from 'react';
 
 import Image from 'next/image';
 import Search from './components/Search';
+import Header from './components/Header';
 
 interface SearchResult {
   title: string;
@@ -246,7 +247,7 @@ export default function Home() {
         backgroundRepeat: 'no-repeat'
       }}
     >
-      {/* Content */}
+      <Header />  {/* Make sure this is here */}
       <div className="relative z-10 flex flex-col items-center w-full">
         {/* Logo */}
         <div className="mb-12">
