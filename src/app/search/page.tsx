@@ -1,5 +1,8 @@
 'use client';
 
+// Add this line below the 'use client' directive
+export const dynamic = 'force-dynamic';
+
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Search from '../components/Search';
