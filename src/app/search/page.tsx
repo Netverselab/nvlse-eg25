@@ -133,11 +133,13 @@ function SearchContent({ parentActiveTab }: { parentActiveTab: string }) {
             </div>
           )}
 
-          {activeTab === 'news' && (
+          {parentActiveTab === 'news' && results?.news && (
             <div className="space-y-4">
-              {results?.news?.map((result: any, i: number) => (
-                <div key={i} className="space-y-1">
-                  <a href={result.url} className="block text-lg text-blue-400 hover:underline">{result.title}</a>
+              {results.news.map((result: any, i: number) => (
+                <div key={i} className="space-y-2">
+                  <a href={result.url} className="block text-lg text-blue-400 hover:underline">
+                    {result.title}
+                  </a>
                   <p className="text-gray-300 text-sm">{result.description}</p>
                   <div className="flex items-center gap-2 text-xs text-gray-400">
                     <span>{result.source}</span>

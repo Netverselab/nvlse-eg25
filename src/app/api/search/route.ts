@@ -135,19 +135,22 @@ export async function GET(request: Request) {
       news: (newsData?.results || []).map((result: any) => ({
         title: sanitizeText(result.title || ''),
         url: result.url || '',
-        description: sanitizeText(result.description || result.snippet || ''),
-        date: result.date || result.age || result.published || 'N/A',
-        source: sanitizeText(result.source || result.publisher || 'Unknown')
-      }))
+        description: sanitizeText(result.description || ''),
+        source: result.meta_url?.hostname || 'Unknown',
+        date: result.age || new Date(result.page_age).toLocaleDateString('en-US', {
+          year: 'numeric',
+          month: 'short',
+          day: 'numeric'
+        })
+      })),
     };
 
-    return NextResponse.json(transformedData);
+    // Add console log to debug news data
+    console.log('News Data:', newsData?.results);
 
+    return NextResponse.json(transformedData);
   } catch (error) {
     console.error('Search API error:', error);
-    return NextResponse.json(
-      { error: 'Failed to fetch search results' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'Failed to fetch search results' }, { status: 500 });
   }
 }
