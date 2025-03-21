@@ -5,6 +5,7 @@ import Link from 'next/link';
 import Search from './components/Search';
 import Header from './components/Header';
 import LatestNews from './components/LatestNews';
+import AuthForm from './components/AuthForm';
 
 interface SearchResult {
   title: string;
@@ -42,7 +43,9 @@ interface NewsResult {
 type SearchType = 'all' | 'images' | 'videos' | 'news';
 
 export default function Home() {
-  return (
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+
+  const mainContent = (
     <main 
       className="min-h-screen bg-[#1E1F24] flex flex-col items-center pt-20 relative"
       style={{
@@ -105,6 +108,13 @@ export default function Home() {
         </div>
       </div>
     </main>
+  );
+
+  return (
+    <>
+      {!isAuthenticated && <AuthForm onAuthenticated={() => setIsAuthenticated(true)} />}
+      {mainContent}
+    </>
   );
 }
 
