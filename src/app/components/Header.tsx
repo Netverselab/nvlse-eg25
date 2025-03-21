@@ -6,6 +6,11 @@ import { FiSettings, FiClock } from 'react-icons/fi';
 
 export default function Header() {
   const [isOpen, setIsOpen] = useState(false);
+  const handleLogout = () => {
+    localStorage.removeItem('nvl_auth_status');
+    localStorage.removeItem('nvl_auth_expiry');
+    window.location.reload();
+  };
 
   return (
     <div className="absolute top-4 right-4">

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 
 interface AuthFormProps {
   onAuthenticated: () => void;
@@ -11,6 +11,38 @@ export default function AuthForm({ onAuthenticated }: AuthFormProps) {
   const [password, setPassword] = useState('');
   const [step, setStep] = useState<'email' | 'password' | 'waitlist' | 'pending'>('email');
   const [message, setMessage] = useState('');
+
+  useEffect(() => {
+    // Check for existing auth or waitlist status
+    const authStatus = localStorage.getItem('nvl_auth_status');
+    const authExpiry = localStorage.getItem('nvl_auth_expiry');
+    
+    if (authStatus && authExpiry) {
+      const now = new Date().getTime();
+      if (now < parseInt(authExpiry)) {
+        if (authStatus === 'authenticated') {
+          onAuthenticated();
+        } else if (authStatus === 'waitlisted') {
+          setStep('waitlist');
+          setMessage("Your application is still under review. We'll notify you once approved.");
+        } else if (authStatus === 'pending') {
+          setStep('pending');
+          setMessage("Your application is under review. We'll notify you once approved.");
+        }
+      } else {
+        // Clear expired status
+        localStorage.removeItem('nvl_auth_status');
+        localStorage.removeItem('nvl_auth_expiry');
+      }
+    }
+  }, [onAuthenticated]);
+
+  const setAuthStatus = (status: string) => {
+    const expiryDate = new Date();
+    expiryDate.setDate(expiryDate.getDate() + 30); // 30 days from now
+    localStorage.setItem('nvl_auth_status', status);
+    localStorage.setItem('nvl_auth_expiry', expiryDate.getTime().toString());
+  };
 
   const handleEmailSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -24,24 +56,14 @@ export default function AuthForm({ onAuthenticated }: AuthFormProps) {
       
       if (data.exists) {
         setStep('password');
-        setMessage(''); // Clear any previous messages
+      } else if (data.status === 'in_waitlist') {
+        setStep('pending');
+        setMessage("Your application is still under review. We'll notify you once approved.");
+        setAuthStatus('pending');
       } else {
-        // Email doesn't exist in users database, add to waitlist
-        const waitlistRes = await fetch('/api/auth/waitlist', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email })
-        });
-        
-        const waitlistData = await waitlistRes.json();
-        
-        if (waitlistData.status === 'pending') {
-          setStep('pending');
-          setMessage("Your application is under review. We'll notify you once approved.");
-        } else {
-          setStep('waitlist');
-          setMessage("Thanks for your interest! We've added you to our waitlist.");
-        }
+        setStep('waitlist');
+        setMessage("Thanks for your interest! We've added you to our waitlist.");
+        setAuthStatus('waitlisted');
       }
     } catch (error) {
       setMessage('An error occurred. Please try again.');
@@ -58,6 +80,7 @@ export default function AuthForm({ onAuthenticated }: AuthFormProps) {
       });
       
       if (res.ok) {
+        setAuthStatus('authenticated');
         onAuthenticated();
       } else {
         setMessage('Invalid password. Please try again.');
