@@ -1,7 +1,7 @@
 import axios from 'axios';
 import * as cheerio from 'cheerio';
 import { URL } from 'url';
-import rateLimiter from '@/utils/rateLimiter';
+import { crawlerRateLimiter } from '@/utils/rateLimiter';
 
 interface CrawlResult {
   url: string;
@@ -56,7 +56,7 @@ class Crawler {
         }
       });
 
-      const response = await rateLimiter.executeWithRateLimit(
+      const response = await crawlerRateLimiter.executeWithRateLimit(
         'crawler',
         fetchWithRateLimit
       );
@@ -123,3 +123,15 @@ class Crawler {
 
 export default Crawler;
 export type { CrawlResult };
+
+export async function crawlWebsite(url: string) {
+  try {
+    await crawlerRateLimiter.waitForToken();
+    const response = await fetch(url);
+    const html = await response.text();
+    return html;
+  } catch (error) {
+    console.error('Crawling error:', error);
+    throw new Error('Failed to crawl website');
+  }
+}
