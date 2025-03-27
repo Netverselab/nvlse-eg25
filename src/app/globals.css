@@ -4,51 +4,36 @@
 
 :root {
   --background: #1E1F24;
+  --foreground: #ffffff;
   --primary: #FB542B;
+  --primary-hover: #e44a25;
+  --primary-light: #ff8b6e;
+  --secondary-bg: #2B2C32;
+  --text-secondary: #a0a0a0;
+  --border-color: #3a3a3a;
 }
 
-body {
-  background-color: var(--background);
-  color: white;
-}
-
-::selection {
-  background-color: var(--primary);
-  color: white;
-}
-
-:root {
+:root[class='light'] {
   --background: #ffffff;
   --foreground: #171717;
   --primary: #8B5CF6;
   --primary-hover: #7C3AED;
   --primary-light: #EDE9FE;
-}
-
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --color-primary: var(--primary);
-  --color-primary-hover: var(--primary-hover);
-  --color-primary-light: var(--primary-light);
-  --font-sans: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto;
-  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New";
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #ffffff;
-    --foreground: #171717;
-    --primary: #8B5CF6;
-    --primary-hover: #7C3AED;
-    --primary-light: #EDE9FE;
-  }
+  --secondary-bg: #f5f5f5;
+  --text-secondary: #4a4a4a;
+  --border-color: #e5e5e5;
 }
 
 body {
-  background: var(--background);
+  background-color: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  transition: background-color 0.2s, color 0.2s;
+}
+
+::selection {
+  background-color: var(--primary);
+  color: white;
 }
 
 /* Interactive elements styling */
@@ -76,4 +61,18 @@ a {
 a:hover {
   color: var(--primary-hover);
   text-decoration: underline;
+}
+
+/* Settings page specific styles */
+.settings-sidebar {
+  background-color: var(--secondary-bg);
+}
+
+.settings-card {
+  background-color: var(--secondary-bg);
+  border: 1px solid var(--border-color);
+}
+
+.settings-text-secondary {
+  color: var(--text-secondary);
 }

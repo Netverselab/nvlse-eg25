@@ -1,5 +1,4 @@
 import { NextResponse } from 'next/server';
-import rateLimiter from '@/utils/rateLimiter';
 
 const BRAVE_API_BASE = 'https://api.search.brave.com/res/v1';
 const BRAVE_ENDPOINTS = {

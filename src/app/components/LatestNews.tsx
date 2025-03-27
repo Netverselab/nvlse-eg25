@@ -14,6 +14,7 @@ export default function LatestNews() {
   const [news, setNews] = useState<NewsItem[]>([]);
   const [loading, setLoading] = useState(true);
 
+  
   const fetchNews = async () => {
     try {
       const response = await fetch('/api/latest-news?' + new URLSearchParams({
